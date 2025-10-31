@@ -1,0 +1,45 @@
+name: chess_whisperer
+description: Chess game with AI play and master game replay functionality
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & State Management
+  cupertino_icons: ^1.0.6
+  provider: ^6.1.1
+
+  # Chess functionality
+  chess: ^0.7.0
+  flutter_chess_board: ^1.0.1
+
+  # HTTP & API
+  http: ^1.1.2
+
+  # Utilities
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#2557A7"
+  adaptive_icon_foreground: "assets/images/app_icon.png"

@@ -1,0 +1,2 @@
+/Users/johnfleming/flutter_chess_app/android/app/.cxx/RelWithDebInfo/5q2k5u24/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/johnfleming/flutter_chess_app/android/app/.cxx/RelWithDebInfo/5q2k5u24/arm64-v8a/CMakeFiles/rebuild_cache.dir
