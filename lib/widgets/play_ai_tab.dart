@@ -174,7 +174,25 @@ class _PlayAiTabState extends State<PlayAiTab> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+
+        // Extract AI move squares for flash animation
+        String? aiFromSquare = data['ai_from_square'] as String?;
+        String? aiToSquare = data['ai_to_square'] as String?;
+
+        // Flash the AI's move squares BEFORE updating board (if available)
+        if (aiFromSquare != null && aiToSquare != null) {
+          await _flashMoveSquares(aiFromSquare, aiToSquare);
+        }
+
         await updateGameState();
+
+        // Check if the last move in history was by the AI (to update notation)
+        if (moveHistory.length >= 2) {
+          final lastMove = moveHistory[moveHistory.length - 1];
+          setState(() {
+            _lastAIMoveNotation = lastMove;
+          });
+        }
 
         if (data['game_over'] == true) {
           setState(() => gameStatus = 'finished');
@@ -208,51 +226,45 @@ class _PlayAiTabState extends State<PlayAiTab> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final aiMove = data['ai_move'] as String?;
+
+        // Try to get from/to squares from the API response (new backend)
+        String? fromSquare = data['from_square'] as String?;
+        String? toSquare = data['to_square'] as String?;
+
+        print('========================================');
+        print('AI MOVE RESPONSE:');
+        print('ai_move: $aiMove');
+        print('from_square: $fromSquare');
+        print('to_square: $toSquare');
+        print('Has from_square: ${fromSquare != null}');
+        print('Has to_square: ${toSquare != null}');
+        print('========================================');
 
         await updateGameState();
 
         setState(() => isAIThinking = false);
 
-        // ALWAYS flash e2 and e4 to test if flashing works at all
-        if (mounted) {
+        // Flash the AI's last move
+        if (mounted && fromSquare != null && toSquare != null) {
+          print('ATTEMPTING TO FLASH: from=$fromSquare to=$toSquare');
+
           setState(() {
-            _lastAIMoveNotation = 'TEST: e2 → e4';
+            _lastAIMoveNotation = aiMove;
           });
 
-          // Show a snackbar to prove we got here
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('STARTING FLASH NOW!'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 2),
-            ),
-          );
+          await _flashMoveSquares(fromSquare, toSquare);
 
-          await _flashMoveSquares('e2', 'e4');
+          print('FLASH COMPLETED');
+        } else {
+          print('CANNOT FLASH: mounted=$mounted, fromSquare=$fromSquare, toSquare=$toSquare');
+          // Still set the notation even if we can't flash
+          if (aiMove != null) {
+            setState(() {
+              _lastAIMoveNotation = aiMove;
+            });
+          }
         }
-
-        // Show another snackbar when done
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('FLASH COMPLETED!'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-
-        // Store and flash the AI's last move after board updates
-        // if (lastMove != null && lastMove!['from'] != null && lastMove!['to'] != null) {
-        //   final from = lastMove!['from'] as String;
-        //   final to = lastMove!['to'] as String;
-
-        //   setState(() {
-        //     _lastAIMoveNotation = '$from → $to';
-        //   });
-
-        //   await _flashMoveSquares(from, to);
-        // }
 
         if (data['game_over'] == true) {
           setState(() => gameStatus = 'finished');
@@ -394,36 +406,27 @@ class _PlayAiTabState extends State<PlayAiTab> {
   }
 
   Future<void> _flashMoveSquares(String from, String to) async {
-    // Phase 1: Highlight FROM square (blue, 2000ms)
+    // Phase 1: Highlight FROM square (bright yellow, 1500ms)
     if (mounted) {
       setState(() {
         _highlightedSquare = from;
-        _highlightColor = Colors.blue;
-      });
-    }
-
-    await Future.delayed(const Duration(milliseconds: 2000));
-
-    // Phase 2: Clear highlight (500ms)
-    if (mounted) {
-      setState(() {
-        _highlightedSquare = null;
-      });
-    }
-
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Phase 3: Highlight TO square (red, 1500ms)
-    if (mounted) {
-      setState(() {
-        _highlightedSquare = to;
-        _highlightColor = Colors.red;
+        _highlightColor = Colors.yellow;
       });
     }
 
     await Future.delayed(const Duration(milliseconds: 1500));
 
-    // Phase 4: Clear highlight
+    // Phase 2: Highlight TO square (bright green, 1500ms)
+    if (mounted) {
+      setState(() {
+        _highlightedSquare = to;
+        _highlightColor = Colors.green;
+      });
+    }
+
+    await Future.delayed(const Duration(milliseconds: 1500));
+
+    // Phase 3: Clear highlight
     if (mounted) {
       setState(() {
         _highlightedSquare = null;
@@ -523,23 +526,13 @@ class _PlayAiTabState extends State<PlayAiTab> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  if (_lastAIMoveNotation != null && !isAIThinking)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        'AI played: $_lastAIMoveNotation',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue[700],
-                        ),
-                      ),
-                    ),
                   Text(
                     isAIThinking
                         ? 'AI is thinking...'
-                        : '${currentPlayer.toUpperCase()} to move',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        : _lastAIMoveNotation != null
+                            ? 'Last move: $_lastAIMoveNotation'
+                            : '${currentPlayer.toUpperCase()} to move',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   if (inCheck && gameStatus == 'active')
                     Container(
@@ -653,7 +646,7 @@ class _PlayAiTabState extends State<PlayAiTab> {
                   ? const Center(
                       child: Text(
                         'No moves yet',
-                        style: TextStyle(color: Colors.grey),
+                        style: TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                     )
                   : ListView.builder(
@@ -677,10 +670,15 @@ class _PlayAiTabState extends State<PlayAiTab> {
                         }
 
                         return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 4),
                           child: Text(
                             '${index + 1}. ${formatMove(index * 2)}${blackMove.isNotEmpty ? ' ${formatMove(index * 2 + 1)}' : ''}',
-                            style: const TextStyle(fontFamily: 'monospace'),
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
+                            ),
                           ),
                         );
                       },
@@ -694,20 +692,50 @@ class _PlayAiTabState extends State<PlayAiTab> {
 
   Widget _buildChessBoard() {
     final screenWidth = MediaQuery.of(context).size.width;
-    final availableWidth = screenWidth - 32; // padding
+    final availableWidth = screenWidth - 48; // Extra padding for right margin
     final squareSize = (availableWidth / 8).clamp(30.0, 50.0);
+    final labelSize = 20.0; // Fixed size for labels
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.brown, width: 3),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: List.generate(8, (rank) {
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(8, (file) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Main board with left rank labels and top
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left rank labels (8-1)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(8, (rank) {
+                return SizedBox(
+                  width: labelSize,
+                  height: squareSize,
+                  child: Center(
+                    child: Text(
+                      '${8 - rank}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            // Chess board
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.brown, width: 3),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(8, (rank) {
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(8, (file) {
               final fileChar = String.fromCharCode(97 + file);
               final square = '$fileChar${8 - rank}';
               final piece = board[square];
@@ -806,7 +834,35 @@ class _PlayAiTabState extends State<PlayAiTab> {
             }),
           );
         }),
-      ),
+              ),
+            ),
+          ],
+        ),
+        // Bottom file labels (a-h)
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(width: labelSize), // Space for left rank labels
+            ...List.generate(8, (file) {
+              final fileChar = String.fromCharCode(97 + file);
+              return SizedBox(
+                width: squareSize,
+                height: labelSize,
+                child: Center(
+                  child: Text(
+                    fileChar,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ],
+        ),
+      ],
     );
   }
 }

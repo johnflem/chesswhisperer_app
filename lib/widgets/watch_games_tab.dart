@@ -27,6 +27,7 @@ class _WatchGamesTabState extends State<WatchGamesTab> {
   String? _selectedPlayer;
   String? _highlightedSquare;
   material.Color? _highlightColor;
+  bool _controlsExpanded = true; // Controls accordion state
 
   // ELO filter ranges
   String _selectedEloRange = 'all';
@@ -562,113 +563,193 @@ class _WatchGamesTabState extends State<WatchGamesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = MediaQuery.of(context).size.width > MediaQuery.of(context).size.height;
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isLandscape ? 8 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Game Selection Button
-          Card(
-            child: ListTile(
-              title: Text(_currentGame?.gameTitle ?? 'No game selected'),
-              subtitle: _currentGame != null
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Move $_currentMoveIndex of ${_currentGame!.moveCount}'),
-                        Text(
-                          'Avg ELO: ${_currentGame!.averageElo} • ${_currentGame!.event}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    )
-                  : const Text('Tap to select a master game'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_currentGame != null)
-                    IconButton(
-                      icon: const Icon(Icons.download),
-                      tooltip: 'Download moves (PGN)',
-                      onPressed: _downloadMoves,
-                    ),
-                  const Icon(Icons.arrow_forward_ios),
-                ],
+          // Collapsible header section
+          if (_controlsExpanded) ...[
+            // Game Selection Button - compact in landscape
+            Card(
+              child: ListTile(
+                dense: isLandscape,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: isLandscape ? 8 : 16,
+                  vertical: isLandscape ? 0 : 8,
+                ),
+                title: Text(
+                  _currentGame?.gameTitle ?? 'No game selected',
+                  style: TextStyle(fontSize: isLandscape ? 14 : 16),
+                ),
+                subtitle: _currentGame != null
+                    ? Text(
+                        'Move $_currentMoveIndex/${_currentGame!.moveCount} • ELO ${_currentGame!.averageElo}',
+                        style: TextStyle(fontSize: isLandscape ? 11 : 12),
+                      )
+                    : Text(
+                        'Tap to select a master game',
+                        style: TextStyle(fontSize: isLandscape ? 12 : 14),
+                      ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_currentGame != null)
+                      IconButton(
+                        icon: const Icon(Icons.download),
+                        tooltip: 'Download moves (PGN)',
+                        onPressed: _downloadMoves,
+                        iconSize: isLandscape ? 20 : 24,
+                      ),
+                    Icon(Icons.arrow_forward_ios, size: isLandscape ? 16 : 20),
+                  ],
+                ),
+                onTap: _showGameSelector,
               ),
-              onTap: _showGameSelector,
             ),
-          ),
 
-          const SizedBox(height: 16),
+            SizedBox(height: isLandscape ? 8 : 16),
+          ],
 
-          // Playback Controls
+          // Playback Controls - compact in landscape, always visible with collapse button
           if (_currentGame != null) ...[
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(isLandscape ? 8 : 16),
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        IconButton.filled(
-                          onPressed: _togglePlayPause,
-                          icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+                        // Collapse/Expand button
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _controlsExpanded = !_controlsExpanded;
+                            });
+                          },
+                          icon: Icon(_controlsExpanded ? Icons.expand_less : Icons.expand_more),
+                          tooltip: _controlsExpanded ? 'Hide header' : 'Show header',
+                          iconSize: isLandscape ? 20 : 24,
                         ),
-                        IconButton.outlined(
-                          onPressed: _previousMove,
-                          icon: const Icon(Icons.skip_previous),
+                        // Playback controls
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton.filled(
+                              onPressed: _togglePlayPause,
+                              icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
+                              iconSize: isLandscape ? 20 : 24,
+                            ),
+                            IconButton.outlined(
+                              onPressed: _previousMove,
+                              icon: const Icon(Icons.skip_previous),
+                              iconSize: isLandscape ? 20 : 24,
+                            ),
+                            IconButton.outlined(
+                              onPressed: _nextMove,
+                              icon: const Icon(Icons.skip_next),
+                              iconSize: isLandscape ? 20 : 24,
+                            ),
+                            IconButton.outlined(
+                              onPressed: _resetGame,
+                              icon: const Icon(Icons.replay),
+                              iconSize: isLandscape ? 20 : 24,
+                            ),
+                          ],
                         ),
-                        IconButton.outlined(
-                          onPressed: _nextMove,
-                          icon: const Icon(Icons.skip_next),
-                        ),
-                        IconButton.outlined(
-                          onPressed: _resetGame,
-                          icon: const Icon(Icons.replay),
-                        ),
+                        if (isLandscape)
+                          DropdownButton<int>(
+                            value: _speed,
+                            isDense: true,
+                            items: const [
+                              DropdownMenuItem(value: 5, child: Text('5s')),
+                              DropdownMenuItem(value: 10, child: Text('10s')),
+                              DropdownMenuItem(value: 15, child: Text('15s')),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _speed = value;
+                                });
+                                if (_isPlaying) {
+                                  _stopPlaying();
+                                  _startPlaying();
+                                }
+                              }
+                            },
+                          ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    SegmentedButton<int>(
-                      segments: const [
-                        ButtonSegment(value: 5, label: Text('5s')),
-                        ButtonSegment(value: 10, label: Text('10s')),
-                        ButtonSegment(value: 15, label: Text('15s')),
-                      ],
-                      selected: {_speed},
-                      onSelectionChanged: (Set<int> newSelection) {
-                        setState(() {
-                          _speed = newSelection.first;
-                        });
-                        if (_isPlaying) {
-                          _stopPlaying();
-                          _startPlaying();
-                        }
-                      },
-                    ),
+                    if (!isLandscape) ...[
+                      const SizedBox(height: 16),
+                      SegmentedButton<int>(
+                        segments: const [
+                          ButtonSegment(value: 5, label: Text('5s')),
+                          ButtonSegment(value: 10, label: Text('10s')),
+                          ButtonSegment(value: 15, label: Text('15s')),
+                        ],
+                        selected: {_speed},
+                        onSelectionChanged: (Set<int> newSelection) {
+                          setState(() {
+                            _speed = newSelection.first;
+                          });
+                          if (_isPlaying) {
+                            _stopPlaying();
+                            _startPlaying();
+                          }
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isLandscape ? 8 : 16),
           ],
 
           // Chess Board with highlighting
           Center(
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: Stack(
-                children: [
-                  ChessBoard(
-                    controller: _boardController,
-                    boardColor: BoardColor.brown,
-                    enableUserMoves: false,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final screenWidth = MediaQuery.of(context).size.width;
+                final screenHeight = MediaQuery.of(context).size.height;
+                final boardIsLandscape = screenWidth > screenHeight;
+
+                // In landscape: use smaller dimension minus padding for square board
+                // In portrait: use full width minus more padding for right margin
+                final maxSize = boardIsLandscape
+                    ? (screenHeight - 150).clamp(200.0, 600.0)  // Leave 150px for header/controls
+                    : screenWidth - 48; // Increased from 32 to 48 for more right margin
+
+                return InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 2.0,
+                  boundaryMargin: const EdgeInsets.all(20),
+                  child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: maxSize,
+                      maxHeight: maxSize,
+                    ),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: Stack(
+                        children: [
+                          ChessBoard(
+                            controller: _boardController,
+                            boardColor: BoardColor.brown,
+                            enableUserMoves: false,
+                          ),
+                          if (_highlightedSquare != null)
+                            _buildHighlightOverlay(_highlightedSquare!, _highlightColor!),
+                        ],
+                      ),
+                    ),
                   ),
-                  if (_highlightedSquare != null)
-                    _buildHighlightOverlay(_highlightedSquare!, _highlightColor!),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
