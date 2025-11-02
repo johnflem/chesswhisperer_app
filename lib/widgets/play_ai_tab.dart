@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../services/ad_service.dart';
 
 class PlayAiTab extends StatefulWidget {
   const PlayAiTab({super.key});
@@ -45,6 +46,9 @@ class _PlayAiTabState extends State<PlayAiTab> {
   }
 
   Future<void> startNewGame() async {
+    // Show ad before starting new game
+    await AdService().showInterstitialAd();
+
     setState(() {
       isLoading = true;
       gameStatus = 'active';
@@ -179,11 +183,56 @@ class _PlayAiTabState extends State<PlayAiTab> {
         String? aiFromSquare = data['ai_from_square'] as String?;
         String? aiToSquare = data['ai_to_square'] as String?;
 
-        // Flash the AI's move squares BEFORE updating board (if available)
+        // Step 1: First show YOUR move on the board (optimistic update)
+        setState(() {
+          // Move your piece on the UI immediately
+          final piece = board[from];
+          if (piece != null) {
+            board.remove(from);
+            board[to] = piece;
+
+            // Handle castling - move the rook too
+            if ((piece == 'K' || piece == 'k') && (from == 'e1' || from == 'e8')) {
+              // Check if this is a castling move (king moves 2 squares)
+              final fromFile = from.codeUnitAt(0);
+              final toFile = to.codeUnitAt(0);
+              if ((toFile - fromFile).abs() == 2) {
+                // Kingside castling (king to g-file)
+                if (toFile > fromFile) {
+                  final rank = from[1];
+                  final rookFrom = 'h$rank';
+                  final rookTo = 'f$rank';
+                  final rook = board[rookFrom];
+                  if (rook != null) {
+                    board.remove(rookFrom);
+                    board[rookTo] = rook;
+                  }
+                }
+                // Queenside castling (king to c-file)
+                else {
+                  final rank = from[1];
+                  final rookFrom = 'a$rank';
+                  final rookTo = 'd$rank';
+                  final rook = board[rookFrom];
+                  if (rook != null) {
+                    board.remove(rookFrom);
+                    board[rookTo] = rook;
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        // Small delay so user sees their move
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        // Step 2: Flash the AI's move squares (if available)
         if (aiFromSquare != null && aiToSquare != null) {
           await _flashMoveSquares(aiFromSquare, aiToSquare);
         }
 
+        // Step 3: Now update to the real game state (which includes AI's move)
         await updateGameState();
 
         // Check if the last move in history was by the AI (to update notation)
@@ -717,7 +766,7 @@ class _PlayAiTabState extends State<PlayAiTab> {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Colors.black,
                       ),
                     ),
                   ),
@@ -748,7 +797,7 @@ class _PlayAiTabState extends State<PlayAiTab> {
               final isUnderAttack = piecesUnderAttack.contains(square);
 
               return GestureDetector(
-                onTap: () => onSquareTap(square),
+                onTap: isAIThinking ? null : () => onSquareTap(square),
                 child: SizedBox(
                   width: squareSize,
                   height: squareSize,
@@ -774,13 +823,6 @@ class _PlayAiTabState extends State<PlayAiTab> {
                                 style: TextStyle(
                                   fontSize: squareSize * 0.7,
                                   color: Colors.black,
-                                  shadows: const [
-                                    Shadow(
-                                      offset: Offset(1, 1),
-                                      blurRadius: 2,
-                                      color: Colors.black26,
-                                    ),
-                                  ],
                                 ),
                               )
                             : isPossible && board[square] == null
@@ -854,7 +896,7 @@ class _PlayAiTabState extends State<PlayAiTab> {
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Colors.black,
                     ),
                   ),
                 ),

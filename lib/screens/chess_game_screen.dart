@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/play_ai_tab.dart';
 import '../widgets/watch_games_tab.dart';
+import 'settings_screen.dart';
 
 class ChessGameScreen extends StatefulWidget {
   const ChessGameScreen({super.key});
@@ -35,6 +36,17 @@ class _ChessGameScreenState extends State<ChessGameScreen>
             Text('♔ Chess Whisperer ♛'),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' as material;
 import 'package:flutter_chess_board/flutter_chess_board.dart';
 import 'package:provider/provider.dart';
 import '../services/chess_api_service.dart';
+import '../services/ad_service.dart';
 import '../models/master_game.dart';
 import 'dart:async';
 
@@ -127,6 +128,9 @@ class _WatchGamesTabState extends State<WatchGamesTab> {
   }
 
   void _selectGame(MasterGame game) async {
+    // Show ad before loading game
+    await AdService().showInterstitialAd();
+
     _stopPlaying();
 
     // If game doesn't have moves, fetch full game details
@@ -142,7 +146,7 @@ class _WatchGamesTabState extends State<WatchGamesTab> {
         });
 
         _boardController.loadFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
-        Navigator.pop(context);
+        if (mounted) Navigator.pop(context);
         return;
       } catch (e) {
         _showError('Failed to load game details: $e');
@@ -157,7 +161,7 @@ class _WatchGamesTabState extends State<WatchGamesTab> {
 
     // Show starting position
     _boardController.loadFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
-    Navigator.pop(context); // Close the game selection dialog
+    if (mounted) Navigator.pop(context); // Close the game selection dialog
   }
 
   void _togglePlayPause() {
@@ -173,6 +177,14 @@ class _WatchGamesTabState extends State<WatchGamesTab> {
 
     setState(() => _isPlaying = true);
 
+    // Make the first move immediately (after 1 second) so user sees action
+    Future.delayed(const Duration(seconds: 1), () {
+      if (_isPlaying && _currentMoveIndex < _currentGame!.moveCount) {
+        _makeNextMove();
+      }
+    });
+
+    // Then continue with regular timer for subsequent moves
     _playTimer = Timer.periodic(Duration(seconds: _speed), (timer) {
       if (_currentMoveIndex >= _currentGame!.moveCount) {
         _stopPlaying();

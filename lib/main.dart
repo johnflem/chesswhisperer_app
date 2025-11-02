@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/chess_game_screen.dart';
 import 'services/chess_api_service.dart';
+import 'services/ad_service.dart';
+import 'services/iap_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AdService().initialize();
+  await IAPService().initialize();
   runApp(const ChessWhispererApp());
 }
 
