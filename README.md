@@ -1,27 +1,40 @@
-# Chess Whisperer - Flutter App
+# Chess Whisperer
 
-A modern Flutter chess application with AI play and master games replay functionality.
+A Flutter chess application with AI gameplay, master game analysis, and monetization features ready for Play Store.
 
 ## Features
 
-### Play vs AI Mode
+### 🎮 Play vs AI
+- Multiple difficulty levels (Beginner to Expert)
 - Choose your color (White or Black)
-- 5 difficulty levels (Easy to Master)
-- Interactive chess board with move validation
-- Hint system
-- Move history tracking
+- AI move flash animation (yellow FROM → green TO)
+- Real-time move validation
+- Move history with detailed notation
+- Board notation labels (a-h, 1-8)
+- Board locked during AI thinking
 
-### Watch Master Games Mode
-- Browse 1000+ master games
-- Filter by player name
-- Filter by average ELO rating
-- Auto-replay with configurable speed (5s, 10s, 15s)
-- Move-by-move highlighting:
-  - Blue flash on FROM square (2 seconds)
-  - 0.5 second delay
-  - Piece moves
-  - Red flash on TO square (1.5 seconds)
-- Manual navigation (Previous/Next/Reset)
+### 👁️ Watch Master Games
+- Browse 1000+ games from chess masters
+- Filter by player name and ELO rating
+- Variable playback speed (0.5s to 5s between moves)
+- Instant first move (1 second after selection)
+- Collapsible interface for optimal viewing
+- Move-by-move navigation
+- Pinch-to-zoom board support
+
+### 💰 Monetization (Play Store Ready)
+- **AdMob Integration**: Interstitial ads on game start
+- **In-App Purchase**: Remove ads with one-time payment
+- Test ads included (replace with production IDs)
+- Cross-platform IAP support (Android & iOS)
+- Settings screen for ad removal purchase
+
+### 🎨 Polish & UX
+- Splash screen on app launch
+- Responsive layout (portrait/landscape)
+- Settings screen with gear icon
+- Visual feedback during AI thinking
+- Instant game responsiveness
 
 ## Setup Instructions
 
@@ -161,20 +174,55 @@ SegmentedButton<int>(
 
 ## Building for Production
 
-### Android APK
+### Automated Setup (Recommended)
+```bash
+./setup_store_submission.sh
+```
+
+This script automatically:
+- Cleans and rebuilds the project
+- Generates release App Bundle (AAB) for Play Store
+- Generates release APK for testing
+- Creates store assets (512x512 icon, feature graphic)
+- Generates complete submission checklist
+
+### Manual Build
+
+**Android App Bundle (for Play Store):**
+```bash
+flutter build appbundle --release
+```
+
+**Android APK (for testing):**
 ```bash
 flutter build apk --release
 ```
 
-### iOS IPA
+**iOS:**
 ```bash
 flutter build ios --release
 ```
 
-### Web
-```bash
-flutter build web --release
-```
+## Play Store Submission
+
+### Quick Start
+1. Run `./setup_store_submission.sh`
+2. Read `PLAY_STORE_CHECKLIST.md` for complete guide
+3. Set up AdMob account and get production ad IDs
+4. Upload AAB to Google Play Console
+
+### Required Before Publishing
+- Replace test ad IDs with production IDs:
+  - `android/app/src/main/AndroidManifest.xml:40` (App ID)
+  - `lib/services/ad_service.dart:14` (Interstitial Ad Unit ID)
+- Set up in-app product `remove_ads` in Play Console
+- Take 2-8 screenshots for store listing
+
+### Generated Assets
+- **App Bundle**: `build/app/outputs/bundle/release/app-release.aab` (28 MB)
+- **512x512 Icon**: `play_store_assets/app_icon_512.png`
+- **Feature Graphic**: `play_store_assets/feature_graphic.png`
+- **Checklist**: `PLAY_STORE_CHECKLIST.md`
 
 ## Troubleshooting
 
